@@ -44,5 +44,10 @@
             <artifactId>jms-api</artifactId>
             <version>1.1-rev-1</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-client</artifactId>
+            <version>5.13.2</version>
+        </dependency>
     </dependencies>
 </project>

@@ -31,21 +31,14 @@ public class JmsSinkTask extends SinkTask {
         JmsSinkConfig config = new JmsSinkConfig(props);
         JmsConnectionFactoryProvider provider = config.getConfiguredInstance(JmsSinkConfig.JMS_CONNECTION_FACTORY_PROVIDER_CLASS_CONFIG,
                 JmsConnectionFactoryProvider.class);
-        String topicName = config.getString(JmsSinkConfig.JMS_TOPIC_NAME_CONFIG);
         converter = config.getConfiguredInstance(JmsSinkConfig.JMS_MESSAGE_CONVERTER_CLASS_CONFIG, JmsMessageConverter.class);
 
-        ConnectionFactory connectionFactory =
-                provider.createConnectionFactory();
         try {
+            ConnectionFactory connectionFactory = provider.createConnectionFactory();
             connection = connectionFactory.createConnection();
-
             boolean transacted = false;
             session = connection.createSession(transacted, Session.AUTO_ACKNOWLEDGE);
-
-            Destination destination = session.createTopic(topicName);
-
-            producer = session.createProducer(destination);
-
+            producer = session.createProducer(null);
             connection.start();
         } catch (JMSException e) {
             throw new ConnectException("Couldn't start JMS Connection", e);
@@ -56,8 +49,9 @@ public class JmsSinkTask extends SinkTask {
     public void put(Collection<SinkRecord> records) {
         for (SinkRecord record : records) {
             try {
+                Destination destination = converter.getDestination(session, record);
                 Message message = converter.toMessage(session, record);
-                producer.send(message);
+                producer.send(destination, message);
             } catch (JMSException e) {
                 throw new ConnectException("Couldn't send JMS Message", e);
             }

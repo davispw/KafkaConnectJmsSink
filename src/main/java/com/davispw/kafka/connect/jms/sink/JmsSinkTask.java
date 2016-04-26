@@ -3,7 +3,6 @@ package com.davispw.kafka.connect.jms.sink;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.AppInfoParser;
-import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
@@ -11,13 +10,13 @@ import org.apache.kafka.connect.sink.SinkTask;
 import javax.jms.*;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Created by davispw on 2016/04/25.
  */
 public class JmsSinkTask extends SinkTask {
 
+    private JmsMessageConverter converter;
     private Connection connection;
     private Session session;
     private MessageProducer producer;
@@ -33,6 +32,7 @@ public class JmsSinkTask extends SinkTask {
         JmsConnectionFactoryProvider provider = config.getConfiguredInstance(JmsSinkConfig.JMS_CONNECTION_FACTORY_PROVIDER_CLASS_CONFIG,
                 JmsConnectionFactoryProvider.class);
         String topicName = config.getString(JmsSinkConfig.JMS_TOPIC_NAME_CONFIG);
+        converter = config.getConfiguredInstance(JmsSinkConfig.JMS_MESSAGE_CONVERTER_CLASS_CONFIG, JmsMessageConverter.class);
 
         ConnectionFactory connectionFactory =
                 provider.createConnectionFactory();
@@ -56,14 +56,7 @@ public class JmsSinkTask extends SinkTask {
     public void put(Collection<SinkRecord> records) {
         for (SinkRecord record : records) {
             try {
-                Message message;
-                Object value = record.value();
-                if (value instanceof byte[]) {
-                    message = session.createBytesMessage();
-                    ((BytesMessage) message).writeBytes((byte[]) record.value());
-                } else {
-                    message = session.createTextMessage(Objects.toString(record.value()));
-                }
+                Message message = converter.toMessage(session, record);
                 producer.send(message);
             } catch (JMSException e) {
                 throw new ConnectException("Couldn't send JMS Message", e);
